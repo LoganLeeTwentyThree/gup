@@ -1,0 +1,11 @@
+[package]
+name = "My Project!"
+version = "0.1.0"
+
+[build]
+infiles = ["./main.hc", "./main2.hc"]
+outfile = "./a.wasm"
+docfile = "./docs.md"
+
+[dependencies]
+"TestProject-0.1.0" = "https://github.com/LoganLeeTwentyThree/test"

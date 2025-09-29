@@ -31,42 +31,7 @@ pub struct Package {
     pub version: String,
 }
 
-pub fn resolve_config(
-    source: Source,
-    output: Option<String>,
-    docs: Option<String>
-) -> std::result::Result<Config, ColoredString> {
-    match (source.config_file, source.input_path, output) {
-        (Some(cfg), None, None) => create_config_from_path(PathBuf::from(cfg)),
-        (Some(cfg), None, Some(out)) => {
-
-            let dependencies = create_dependencies(cfg.clone())?;
-
-            let config = create_config_from_path(PathBuf::from(cfg))?;
-            create_config(
-                config.build.infiles, 
-                out, 
-                docs,
-                dependencies)
-        },
-        (_, Some(inp), out) => create_config(
-            vec![inp], 
-            out.unwrap_or("./a.wasm".into()), 
-            docs,
-        None),
-        _ => unreachable!("Clap enforces mutual exclusion"),
-    }
-}
-
-pub fn create_dependencies(path : String) -> std::result::Result<Option<Table>, ColoredString>
-{
-    let cfgfile = std::fs::read_to_string(std::path::PathBuf::from(path)).map_err(|e| format!("{} {}", "Config error:\n".red(), e.to_string()))?;
-    let cfg : Config = toml::from_str(&cfgfile).map_err(|e| e.to_string() + &"\nCould not create config".red())?;
-    validate_config(&cfg)?;
-    Ok(cfg.dependencies)
-}
-
-pub fn create_config_from_path(path : PathBuf) -> std::result::Result<Config, ColoredString>
+pub fn create_config_from_path(path : &PathBuf) -> std::result::Result<Config, ColoredString>
 {
     debug("Config",&format!("Creating config from \"{}\"", path.to_str().unwrap()));
     let cfgfile = std::fs::read_to_string(path)
@@ -169,7 +134,7 @@ pub fn write_config( cfg : &Config, path : String ) -> Result<(), ColoredString>
 
 pub fn add_dep_to_config (dep_name : &str, dep_url : &str, config_path : &str) -> Result<(), ColoredString>
 {
-    let config = create_config_from_path(config_path.into())?;
+    let config = create_config_from_path(&config_path.into())?;
     
     let mut new_deps = match config.dependencies {
         Some(list) => list,
@@ -183,7 +148,7 @@ pub fn add_dep_to_config (dep_name : &str, dep_url : &str, config_path : &str) -
         ..config
     };
 
-    write_config(&new_config, config_path.into())?;let config = create_config_from_path(config_path.into())?;
+    write_config(&new_config, config_path.into())?;let config = create_config_from_path(&config_path.into())?;
     
     let mut new_deps = match config.dependencies {
         Some(list) => list,

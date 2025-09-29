@@ -1,118 +1,116 @@
-use colored::ColoredString;
-use clap::derive;
+use colored::{Colorize,ColoredString};
+use clap::*;
 use log::error;
+use std::path::PathBuf;
 
-/// Args for building
-#[derive(Debug, Args)]
-pub struct BuildGroup {
-    /// Input file
-    #[arg(short, long, required = true)]
-    pub source: String,
+mod cli;
+use crate::cli::*;
+mod config;
+use crate::config::*;
+mod pdm;
+use pdm::*;
+mod logging;
+use logging::*;
+mod build;
+use build::*;
+mod parse;
 
-    /// Optional output file (only meaningful with --input-path)
-    #[arg(short, long)]
-    pub output_path: Option<String>,
-}
+const CONFIG_PATH : &str = "./Config.toml";
+const OUTPUT_PATH : &str = "./a.wasm";
+const DOCS_PATH : &str = "./docs.md";
 
-/// Args for running
-#[derive(Debug, Args)]
-pub struct RunGroup {
-    /// Launch parameters for Halcyon program
-    #[arg(short, long, num_args = 0..)]
-    pub parameters: Option<Vec<String>>,
-}
-
-/// Args for docs
-#[derive(Debug, Args)]
-pub struct DocGroup {
-    /// File to write docs to
-    #[arg(short, long, default_value = "./docs.md")]
-    pub doc_file: Option<String>,
-}
-
-/// Args for initializing
-#[derive(Debug, Args)]
-pub struct InitGroup {
-    /// Output path
-    #[arg(short, long, default_value = "./a.wasm")]
-    pub output_path: Option<String>,
-    /// Optional flag to skip git init
-    #[arg(short, long, action)]
-    pub no_git: bool,
-}
-
-/// Args for adding a dependency
-#[derive(Debug, Args)]
-pub struct AddGroup {
-    /// Arg URL
-    #[arg(short, long, required = true)]
-    pub url: String,
-    /// Config file path
-    #[arg(short, long, default_value = "./Config.toml")]
-    pub config_file: String,
-}
-
-/// Subcommands
-#[derive(Debug, Subcommand)]
-pub enum Commands {
-    /// Validate the project
-    Check(BuildGroup),
-    /// Compile and link the project
-    Build(BuildGroup),
-    /// Compile, link, and execute the project
-    Run(RunGroup),
-    /// Initialize a new Halcyon project in the current directory
-    Init(InitGroup),
-    /// Create documentation based off line comments
-    Doc(DocGroup),
-    /// Add a dependency to your project
-    Add(AddGroup),
-    /// Update dependencies to the most recent versions
-    Update,
-    Version,
-}
-
-#[derive(Parser, Debug)]
-#[command(name = "gup", about = "Halcyon Package Manager")]
-pub struct CmdArgs {
-    #[command(subcommand)]
-    pub command: Commands,
-    /// Verbosity
-    #[command(flatten)]
-    pub verbose: Verbosity<InfoLevel>,
-}
-
-// checks if the infiles in a given config are valid
-pub fn check_valid(config : &Config) -> std::result::Result<(), colored::ColoredString> {
-    // TODO: More checks?
-    // does each infile compile?
-    for infile in &config.build.infiles {
-        info("Check",&format!("Checking: {}", infile.blue()));
-        let path = std::path::PathBuf::from(infile);
-        match path.extension().unwrap().to_str() {
-            Some("hc") => {
-                /*let file_as_string = std::fs::read_to_string(std::path::PathBuf::from(infile))
-                    .map_err(|e| format!("{} {} {}", "Config error:".red(),  e.to_string(), &infile.red()))?; //this shouldnt trigger because the config should be valid, but just in case
-                let gag = Gag::stdout().unwrap();
-                let compilation_result = compile(&file_as_string);
-                drop(gag);
-                match compilation_result {
-                    std::result::Result::Err(err) => return std::result::Result::Err(format!("{}\n{}",infile.clone().red(), &err).into()),
-                    _ => {info("Check", &format!("Success Checking {}", infile.blue()));},
-                }*/
-            }
-            Some("wasm") => {// maybe something here later... idk 
-                },
-            _ => error(&format!("Check: Invalid infile type detected \"{}\"", infile)),
-        }
-        
-        
-    }
-    Ok(())
-
-} 
 
 fn gup_main() -> Result<(), ColoredString> {
+    let args = CmdArgs::parse();
+    env_logger::Builder::new()
+        .filter_module("gup",args.verbose.log_level_filter())
+        .init();
+    match args.command {
+        Commands::Check => {
+            let cfg = create_config_from_path(&PathBuf::from(CONFIG_PATH))?;
+            check_valid(&cfg)?;
+        },
+        Commands::Build => {
+            let cfg = create_config_from_path(&PathBuf::from(CONFIG_PATH))?;
+            build(&cfg)?;
+        }
+        Commands::Run => {
+            let cfg = create_config_from_path(&PathBuf::from(CONFIG_PATH))?;
+            run(&cfg)?;
+        },
+        Commands::Init(init_group) => {
+            // Initialize a new halcyon project
+            // check if config already exists
+            match std::fs::exists(CONFIG_PATH).unwrap() {
+                true => {
+                    warn("Init",&format!("\"{CONFIG_PATH}\" already exists in this directory. Continue? (y/N)"));
+                    loop {
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input).expect("Failed to read line");
+                        match input.to_lowercase().trim() {
+                            "y" => {break;}
+                            "n" => {return Ok(())}
+                            "" => {break;}
+                            _ => {warn("Init","Invalid input. Try again."); }
+                        }
+                    }
+                },
+                false => {}
+            } 
+
+            println!("Input Project Name: ");
+            let mut proj_name = String::new();
+            std::io::stdin().read_line(&mut proj_name).expect("Failed to read line");
+            
+            
+            // create a config from input/defaults
+            let mut cfg = create_config(
+                vec!["./main.hc".into()], 
+                OUTPUT_PATH.into(), 
+                Some(DOCS_PATH.into()),
+                None)?;
+                
+            // add package
+            cfg.package =  Some(
+                Package {
+                name: proj_name.trim().into(),
+                version: "0.1.0".into(),
+            });
+            
+            // write each infile as a .hc module
+            for arg in cfg.build.infiles.clone() {
+                let content = String::from("module ") + std::path::PathBuf::from(&arg).file_stem().unwrap().to_str().expect("Filename contains invalid characters") + " =\n(* Your code here! *)\nend";
+                std::fs::write(std::path::PathBuf::from(arg), content)
+                    .map_err(|e| e.to_string().red())?;
+            }
+            // write the config
+            write_config(&cfg, "./Config.toml".into())?;
+
+            if !init_group.no_git {
+                // make a git repo
+                let repo = git2::Repository::init(".")
+                    .map_err(|e| e.to_string())?;
+
+                let content = "# Halcyon build artifacts\n*.wasm";
+                std::fs::write(".gitignore", content).map_err(|e| e.to_string())?;
+                
+                info("Init", &format!("Initialized empty Git repository at {:?}", repo.path()));
+            }
+        },
+        Commands::Doc => {
+            let cfg = create_config_from_path(&PathBuf::from(CONFIG_PATH))?;
+            parse::create_docs(cfg)?;
+        },
+        Commands::Add(add_group) => {
+            let new_package = add_dependency(add_group.url.clone())?;
+            add_dep_to_config(&new_package, &add_group.url, CONFIG_PATH)?;            
+            info("Add", &format!("Successfully added {} as a dependency.", &new_package));
+        },
+        Commands::Update => todo!(),
+        Commands::Version => {
+            println!("gup version: {}", env!("CARGO_PKG_VERSION"))
+        },
+    }
     Ok(())
 }
 

@@ -8,6 +8,14 @@ pub struct InitGroup {
     pub no_git: bool,
 }
 
+/// Args for running
+#[derive(Debug, Args)]
+pub struct RunGroup {
+    /// Arg URL
+    #[arg(short, long, num_args = 0..)]
+    pub paramaters: Vec<String>,
+}
+
 /// Args for adding a dependency
 #[derive(Debug, Args)]
 pub struct AddGroup {
@@ -24,7 +32,7 @@ pub enum Commands {
     /// Compile and link the project
     Build,
     /// Compile, link, and execute the project
-    Run,
+    Run(RunGroup),
     /// Initialize a new Halcyon project in the current directory
     Init(InitGroup),
     /// Create documentation based off line comments

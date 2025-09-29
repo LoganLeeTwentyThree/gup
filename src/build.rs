@@ -30,6 +30,7 @@ fn run_hcc( command : String, args : Vec<String>) -> std::result::Result<String,
                     return Err(e.to_string().into());
                 }
             }
+
             match stdout {
                 Ok(result) => {
                     return Ok(result.into());
@@ -92,7 +93,7 @@ pub fn build(config : &Config) -> std::result::Result<(), colored::ColoredString
     
 }
 
-pub fn run(config : &Config) -> std::result::Result<(), colored::ColoredString> {
+pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), colored::ColoredString> {
     let mut args: Vec<String> = Vec::new();
 
     if config.dependencies != None {
@@ -111,6 +112,11 @@ pub fn run(config : &Config) -> std::result::Result<(), colored::ColoredString> 
     for infile in &config.build.infiles{
         args.push("-i".into());
         args.push(infile.into());
+    }
+
+    for param in params {
+        args.push("-p".into());
+        args.push(param);
     }
 
     let out = run_hcc("run".into(), args)?;

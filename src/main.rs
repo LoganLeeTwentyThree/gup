@@ -34,9 +34,9 @@ fn gup_main() -> Result<(), ColoredString> {
             let cfg = create_config_from_path(&PathBuf::from(CONFIG_PATH))?;
             build(&cfg)?;
         }
-        Commands::Run => {
+        Commands::Run(run_group) => {
             let cfg = create_config_from_path(&PathBuf::from(CONFIG_PATH))?;
-            run(&cfg)?;
+            run(&cfg, run_group.paramaters)?;
         },
         Commands::Init(init_group) => {
             // Initialize a new halcyon project

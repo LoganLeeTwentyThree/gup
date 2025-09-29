@@ -17,11 +17,17 @@ pub struct RunGroup {
 }
 
 /// Args for adding a dependency
+
 #[derive(Debug, Args)]
+#[clap(group = ArgGroup::new("input")
+    .required(true))]
 pub struct AddGroup {
     /// Arg URL
-    #[arg(short, long, required = true)]
-    pub url: String,
+    #[arg(short, long, group = "input")]
+    pub url: Option<String>,
+    /// Arg path
+    #[arg(short, long, group = "input")]
+    pub path: Option<String>,
 }
 
 /// Subcommands

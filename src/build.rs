@@ -44,7 +44,7 @@ fn run_hcc( command : String, args : Vec<String>) -> std::result::Result<String,
             
         },
         Err(e) => {
-            return Err(e.to_string().into());
+            return Err(format!("{} (Do you have hcc installed?)",e.to_string()).into());
         }
     }
 }
@@ -75,9 +75,18 @@ pub fn build(config : &Config) -> std::result::Result<(), colored::ColoredString
 
     if config.dependencies != None{
         for depfile in config.dependencies.clone().unwrap(){
-            let full_path: PathBuf = [home_dir().unwrap(), ".hc".into(), depfile.0.into()].iter().collect();
             args.push("-i".into());
-            args.push(full_path.to_str().unwrap().into());
+            match std::fs::exists(depfile.1.to_string()) {
+                Ok(true)=>{
+                    args.push(depfile.1.to_string());
+                },
+                Ok(false)=>{
+                    let full_path: PathBuf = [home_dir().unwrap(), ".hc".into(), depfile.0.into()].iter().collect();
+                    args.push(full_path.to_str().unwrap().into());
+                },
+                Err(e)=>{error(&e.to_string());},
+            }
+            
         }
     }
     
@@ -98,11 +107,16 @@ pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), co
 
     if config.dependencies != None {
         for depfile in config.dependencies.clone().unwrap(){
-            let cfg_path: PathBuf = [home_dir().unwrap(), ".hc".into(), depfile.0.into()].iter().collect();
+            args.push("-i".into());
+            let cfg_path: PathBuf = match std::fs::exists(depfile.1.to_string()) {
+                Ok(true) =>{depfile.1.to_string().into()},
+                Ok(false) =>{[home_dir().unwrap(), ".hc".into(), depfile.0.into()].iter().collect()},
+                Err(e)=> return Err(e.to_string().into()),
+            };
+            
             for infile in create_config_from_path(&cfg_path.join("Config.toml"))?.build.infiles{
                 debug("Run", &format!("Adding {} to source", &infile));
                 let full_path = cfg_path.join(infile);
-                args.push("-i".into());
                 args.push(full_path.to_str().unwrap().into());
             }
         }

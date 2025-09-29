@@ -102,9 +102,19 @@ fn gup_main() -> Result<(), ColoredString> {
             parse::create_docs(cfg)?;
         },
         Commands::Add(add_group) => {
-            let new_package = add_dependency(add_group.url.clone())?;
-            add_dep_to_config(&new_package, &add_group.url, CONFIG_PATH)?;            
-            info("Add", &format!("Successfully added {} as a dependency.", &new_package));
+            match (add_group.path, add_group.url){
+                (Some(path), None) =>{
+                    let cfg = create_config_from_path(&PathBuf::from(&path))?;
+                    add_dep_to_config(&cfg.package.unwrap().name, &path, CONFIG_PATH)?;   
+                },
+                (None,Some(url))=> {
+                    let new_package = add_dependency(url.clone())?;
+                    add_dep_to_config(&new_package, &url, CONFIG_PATH)?;            
+                    info("Add", &format!("Successfully added {} as a dependency.", &new_package));
+                },
+                _ => unreachable!()
+            }
+            
         },
         Commands::Update => todo!(),
         Commands::Version => {

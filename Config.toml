@@ -9,3 +9,4 @@ docfile = "./docs.md"
 
 [dependencies]
 "TestProject-0.1.0" = "https://github.com/LoganLeeTwentyThree/test"
+"Testing-0.2.0" = 'C:\Users\admin\.hc\Testing-0.2.0'

@@ -28,6 +28,9 @@ pub struct AddGroup {
     /// Arg path
     #[arg(short, long, group = "input")]
     pub path: Option<String>,
+    /// Show tree
+    #[arg(short, long, action)]
+    pub tree : bool
 }
 
 /// Subcommands
@@ -48,6 +51,8 @@ pub enum Commands {
     /// Update dependencies to the most recent versions
     Update,
     Version,
+    /// Show dependency tree
+    Tree
 }
 
 #[derive(Parser, Debug)]

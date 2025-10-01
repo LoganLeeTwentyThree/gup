@@ -104,8 +104,10 @@ fn gup_main() -> Result<(), ColoredString> {
         Commands::Add(add_group) => {
             match (add_group.path, add_group.url){
                 (Some(path), None) =>{
-                    let cfg = create_config_from_path(&PathBuf::from(&path))?;
-                    add_dep_to_config(&cfg.package.unwrap().name, &path, CONFIG_PATH)?;   
+                    let cfg = create_config_from_path(&PathBuf::from(&path).join(CONFIG_PATH))?;
+                    let pack = cfg.package.unwrap();
+                    let dep_name = format!("{}-{}", pack.name, pack.version );
+                    add_dep_to_config(&dep_name, &path, CONFIG_PATH)?;   
                 },
                 (None,Some(url))=> {
                     let new_package = add_dependency(url.clone())?;
@@ -114,12 +116,23 @@ fn gup_main() -> Result<(), ColoredString> {
                 },
                 _ => unreachable!()
             }
+
+            if add_group.tree {
+                let cfg = create_config_from_path(&CONFIG_PATH.into())?;
+                let tree = get_dep_tree(cfg)?;
+                println!("{}", tree);
+            }
             
         },
         Commands::Update => todo!(),
         Commands::Version => {
             println!("gup version: {}", env!("CARGO_PKG_VERSION"))
         },
+        Commands::Tree => {
+            let cfg = create_config_from_path(&CONFIG_PATH.into())?;
+            let tree = get_dep_tree(cfg)?;
+            println!("{}", tree);
+        }
     }
     Ok(())
 }

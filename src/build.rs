@@ -2,8 +2,9 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::env::home_dir;
 
-use crate::config::{create_config_from_path, Config};
+use crate::config::{Config};
 use crate::logging::*;
+use crate::pdm::get_dep_cfg;
 use colored::Colorize;
 
 fn run_hcc( command : String, args : Vec<String>) -> std::result::Result<String, colored::ColoredString> {
@@ -110,11 +111,11 @@ pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), co
             args.push("-i".into());
             let cfg_path: PathBuf = match std::fs::exists(depfile.1.to_string()) {
                 Ok(true) =>{depfile.1.to_string().into()},
-                Ok(false) =>{[home_dir().unwrap(), ".hc".into(), depfile.0.into()].iter().collect()},
+                Ok(false) =>{[home_dir().unwrap(), ".hc".into(), depfile.0.clone().into()].iter().collect()},
                 Err(e)=> return Err(e.to_string().into()),
             };
-            
-            for infile in create_config_from_path(&cfg_path.join("Config.toml"))?.build.infiles{
+
+            for infile in get_dep_cfg(depfile)?.build.infiles{
                 debug("Run", &format!("Adding {} to source", &infile));
                 let full_path = cfg_path.join(infile);
                 args.push(full_path.to_str().unwrap().into());

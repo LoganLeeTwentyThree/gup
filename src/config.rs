@@ -37,6 +37,7 @@ pub fn create_config_from_path(path : &PathBuf) -> std::result::Result<Config, C
     let cfgfile = std::fs::read_to_string(path)
         .map_err(|e| format!("{} {}", "Config error:\n".red(), e.to_string()))?;
     let cfg : Config = toml::from_str(&cfgfile).map_err(|e| e.to_string() + &"\nCould not create config".red())?;
+    debug("create_config_from_path",&format!("Validating config: {}", path.to_str().unwrap()));
     validate_config(&cfg)?;
     Ok(cfg)
 }
@@ -56,17 +57,14 @@ pub fn create_config(ins : Vec<String>, out : String, dfile : Option<String>, de
         dependencies: deps,
         package: None
     };
-
-    validate_config(&cfg)?;
     Ok(cfg)
 }
 
 pub fn validate_config(cfg : &Config) -> Result<(), ColoredString>
 {
-    debug("Config","Validating config");
     //check infiles for errors
     for arg in &cfg.build.infiles {
-        debug("Config",&format!("Checking input file \"{}\" ", arg));
+        debug("validate_config",&format!("Checking input file \"{}\" ", arg));
         let path= std::path::Path::new(&arg);
         if std::fs::exists(path).unwrap() == true {
             match path.extension().unwrap().to_str() {
@@ -78,7 +76,7 @@ pub fn validate_config(cfg : &Config) -> Result<(), ColoredString>
         
     }
 
-    debug("Config",&format!("Checking output file {} ", cfg.build.outfile));
+    debug("validate_config",&format!("Checking output file {} ", cfg.build.outfile));
     //check outfile for errors
     match std::path::Path::new(&cfg.build.outfile).extension().unwrap().to_str() {
         Some("wasm") => {},
@@ -100,7 +98,7 @@ pub fn validate_config(cfg : &Config) -> Result<(), ColoredString>
     match &cfg.build.docfile {
         None => {},
         Some(path) => {
-            debug("Config",&format!("checking docfile \"{}\"", path));
+            debug("validate_config",&format!("checking docfile \"{}\"", path));
             match std::path::Path::new(&path).extension().unwrap().to_str() {
                 Some("md") => {},
                 _ => return std::result::Result::Err(format!("{}: {} \"{}\"","Config error:".red(), "Invalid doc filename: ".red(), &path).into()),
@@ -135,20 +133,6 @@ pub fn write_config( cfg : &Config, path : String ) -> Result<(), ColoredString>
 pub fn add_dep_to_config (dep_name : &str, dep_url : &str, config_path : &str) -> Result<(), ColoredString>
 {
     let config = create_config_from_path(&config_path.into())?;
-    
-    let mut new_deps = match config.dependencies {
-        Some(list) => list,
-        None => Table::new(),
-    };
-
-    new_deps.insert(dep_name.into(), toml::Value::String(dep_url.into()));
-
-    let new_config = Config {
-        dependencies: Some(new_deps),
-        ..config
-    };
-
-    write_config(&new_config, config_path.into())?;let config = create_config_from_path(&config_path.into())?;
     
     let mut new_deps = match config.dependencies {
         Some(list) => list,

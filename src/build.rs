@@ -114,8 +114,7 @@ pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), co
     if config.dependencies != None {
         for dep_table in config.dependencies.clone().unwrap(){
             let dep = table_to_dep(dep_table.1.as_table().expect("Unable to create dependency table"))?;
-            args.push("-i".into());
-            println!("{}",dep.name);
+            
             let cfg_path: PathBuf = {
                     let dir_name = format!("{}-{}", dep.name, dep.version);
                     [home_dir().unwrap(), ".hc".into(), dir_name.into()].iter().collect()
@@ -125,6 +124,8 @@ pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), co
             let dep_name_version = format!("{}-{}", dep.name, dep.version);
             for infile in get_dep_cfg(dep_name_version)?.build.infiles{
                 debug("Run", &format!("Adding {} to source", &infile));
+
+                args.push("-i".into());
                 let full_path = cfg_path.join(infile);
                 args.push(full_path.to_str().unwrap().into());
             }
@@ -142,7 +143,9 @@ pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), co
         args.push(param);
     }
 
+    let timer = start_step("Run");
     let out = run_hcc("run".into(), args)?;
     println!("{out}");
+    elapsed("Run", timer);
     Ok(())
 }

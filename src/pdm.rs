@@ -1,6 +1,7 @@
 use std::{env::home_dir, path::{PathBuf}};
 
 use colored::{ColoredString, Colorize};
+use serde::de;
 use toml::Table;
 use termtree::*;
 
@@ -31,12 +32,11 @@ use crate::{config::{self, Dependency}, logging::*};
 
 pub fn add_dependency (url : String) -> Result<Dependency, ColoredString>
 {
-    let hcc_path : PathBuf = [home_dir().unwrap(), PathBuf::from(".hc")].iter().collect();
-    let dep_path = hcc_path.join("temp");
+    let dep_path = get_hc_filepath().join("temp");
     
     // create hc directory if not exist
-    if !std::fs::exists(hcc_path.clone()).unwrap() {
-        std::fs::create_dir(hcc_path.clone())
+    if !std::fs::exists(get_hc_filepath().clone()).unwrap() {
+        std::fs::create_dir(get_hc_filepath().clone())
             .map_err(|e| e.to_string().red())?;
     }
 
@@ -50,7 +50,7 @@ pub fn add_dependency (url : String) -> Result<Dependency, ColoredString>
     match &dep_config.package {
         Some(pack) => {
             let package_name = format!("{}-{}", pack.name, pack.version);
-            let new_dep_path = hcc_path.join(package_name.clone());
+            let new_dep_path = get_hc_filepath().join(package_name.clone());
             debug("PDM", &format!("Path to new dependency - \"{}\"", new_dep_path.to_str().unwrap()));
 
             match std::fs::exists(new_dep_path.clone()){
@@ -78,31 +78,37 @@ pub fn add_dependency (url : String) -> Result<Dependency, ColoredString>
     
 }
 
-pub fn get_dep_cfg(dep_name_version : String) -> Result<crate::Config, ColoredString>
+pub fn get_dep_cfg(dep : Dependency) -> Result<crate::Config, ColoredString>
 {
-
-    let full_path : PathBuf = [home_dir().unwrap(), PathBuf::from(".hc"), dep_name_version.into(), "Config.toml".into()].iter().collect();
+    let name_version = get_dep_filename(&dep)?;
+    let full_path : PathBuf = [get_hc_filepath(), name_version.into(), "Config.toml".into()].iter().collect();
     debug("get_dep_cfg", &format!("Getting config from {}", full_path.to_string_lossy()));
     config::create_config_from_path(&full_path)
 }
 
-pub fn get_dep_filename_from_cfg(cfg : &config::Config) -> Result<String, ColoredString>
+pub fn get_dep_filename(dep : &Dependency) -> Result<String, ColoredString>
 {
-    let pack = cfg.package.as_ref().unwrap();
-    Ok(format!("{}-{}", pack.name, pack.version))
+    Ok(format!("{}-{}", dep.name, dep.version))
 }
 
 pub fn get_dep_tree(cfg : crate::Config) -> Result<Tree<String>, ColoredString>
 {
     // TODO: Deal with circular dependencies
-    let tree_name = get_dep_filename_from_cfg(&cfg)?;
+
+    let pack = cfg.package.unwrap();
+    let cur_dep = Dependency {
+        name: pack.name,
+        version: pack.version,
+        source: String::new(),
+    };
+    let tree_name = get_dep_filename(&cur_dep)?;
     let mut tree = Tree::new(tree_name);
     if cfg.dependencies != None
     {
         for dep in &cfg.dependencies.clone().unwrap()
         {    
             let new_dep = table_to_dep(dep.1.as_table().expect("Unable to create table from dependency"))?;
-            let child_subtree = get_dep_tree(get_dep_cfg(new_dep.name)?)?;
+            let child_subtree = get_dep_tree(get_dep_cfg(new_dep)?)?;
             tree.push(child_subtree);
         }   
     }
@@ -126,4 +132,9 @@ pub fn print_dep_tree () -> Result<(), ColoredString>
     let tree = get_dep_tree(cfg)?;
     println!("{}", tree);
     Ok(())
+}
+
+pub fn get_hc_filepath() -> PathBuf
+{
+    [home_dir().unwrap(), PathBuf::from(".hc")].iter().collect::<PathBuf>()
 }

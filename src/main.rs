@@ -1,6 +1,7 @@
 use colored::{Colorize,ColoredString};
 use clap::*;
 use log::error;
+use url::Url;
 use std::env::home_dir;
 use std::path::PathBuf;
 
@@ -97,10 +98,12 @@ fn gup_main() -> Result<(), ColoredString> {
                 
                 info("Init", &format!("Initialized empty Git repository at {:?}", repo.path()));
             }
+            success("Successfully initialized halcyon project");
         },
         Commands::Doc => {
             let cfg = create_config_from_path(&PathBuf::from(CONFIG_PATH))?;
             parse::create_docs(cfg)?;
+            success("Docs created");
         },
         Commands::Add(add_group) => {
             match (add_group.path, add_group.url){
@@ -134,7 +137,21 @@ fn gup_main() -> Result<(), ColoredString> {
             }
             
         },
-        Commands::Update => todo!(),
+        Commands::Update => {
+            for dep_table in create_config_from_path(&PathBuf::from(CONFIG_PATH))?.dependencies.unwrap()
+            {
+                let dep = table_to_dep(dep_table.1.as_table().unwrap())?;
+                let url = Url::parse(&dep.source)
+                    .map_err(|e|e.to_string())?;
+
+                if url.has_host()
+                {
+                    let dest : PathBuf = [get_hc_filepath(), get_dep_filename(&dep)?.into()].into_iter().collect();
+                    git2::Repository::clone(&url.to_string(), dest)
+                        .map_err(|e|e.to_string())?;
+                }
+            }
+        },
         Commands::Version => {
             println!("gup version: {}", env!("CARGO_PKG_VERSION"))
         },

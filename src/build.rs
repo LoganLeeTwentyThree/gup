@@ -4,7 +4,7 @@ use std::env::home_dir;
 
 use crate::config::{Config};
 use crate::logging::*;
-use crate::pdm::{add_dependency, get_dep_cfg, table_to_dep};
+use crate::pdm::{add_dependency, get_dep_cfg, get_dep_filename, table_to_dep};
 use colored::Colorize;
 
 fn run_hcc( command : String, args : Vec<String>) -> std::result::Result<String, colored::ColoredString> {
@@ -116,13 +116,11 @@ pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), co
             let dep = table_to_dep(dep_table.1.as_table().expect("Unable to create dependency table"))?;
             
             let cfg_path: PathBuf = {
-                    let dir_name = format!("{}-{}", dep.name, dep.version);
+                    let dir_name = get_dep_filename(&dep)?;
                     [home_dir().unwrap(), ".hc".into(), dir_name.into()].iter().collect()
             };
                 
-
-            let dep_name_version = format!("{}-{}", dep.name, dep.version);
-            for infile in get_dep_cfg(dep_name_version)?.build.infiles{
+            for infile in get_dep_cfg(dep)?.build.infiles{
                 debug("Run", &format!("Adding {} to source", &infile));
 
                 args.push("-i".into());

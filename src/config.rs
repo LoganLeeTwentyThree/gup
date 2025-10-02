@@ -4,7 +4,6 @@ use colored::{ColoredString, Colorize};
 use toml::Table;
 
 use crate::logging::*;
-use crate::pdm::validate_dependency;
 
 //config file struct
 #[derive(serde::Deserialize)]
@@ -31,9 +30,17 @@ pub struct Package {
     pub version: String,
 }
 
+#[derive(serde::Deserialize)]
+#[derive(serde::Serialize)]
+pub struct Dependency {
+    pub name: String,
+    pub version: String,
+    pub source: String,
+}
+
 pub fn create_config_from_path(path : &PathBuf) -> std::result::Result<Config, ColoredString>
 {
-    debug("Config",&format!("Creating config from \"{}\"", path.to_str().unwrap()));
+    debug("create_config_from_path",&format!("Creating config from \"{}\"", path.to_str().unwrap()));
     let cfgfile = std::fs::read_to_string(path)
         .map_err(|e| format!("{} {}", "Config error:\n".red(), e.to_string()))?;
     let cfg : Config = toml::from_str(&cfgfile).map_err(|e| e.to_string() + &"\nCould not create config".red())?;
@@ -44,7 +51,7 @@ pub fn create_config_from_path(path : &PathBuf) -> std::result::Result<Config, C
 
 pub fn create_config(ins : Vec<String>, out : String, dfile : Option<String>, deps : Option<Table>) -> std::result::Result<Config, ColoredString>
 {
-    log::debug!("Config: Creating config");
+    log::debug!("create_config: Creating config");
 
     let cfg : Config =
     Config {
@@ -105,18 +112,6 @@ pub fn validate_config(cfg : &Config) -> Result<(), ColoredString>
             }
         }
     }
-
-    
-    
-    //check dependencies if they exist
-    match &cfg.dependencies {
-        None => {},
-        Some(list) => {
-            for url in list.clone() {
-                validate_dependency(url.1.as_str().unwrap().into())?;
-            }
-        }
-    }
      
 
     Ok(())
@@ -130,16 +125,21 @@ pub fn write_config( cfg : &Config, path : String ) -> Result<(), ColoredString>
     Ok(())
 }
 
-pub fn add_dep_to_config (dep_name : &str, dep_url : &str, config_path : &str) -> Result<(), ColoredString>
+pub fn add_dep_to_config (dep : Dependency, config_path : &str) -> Result<(), ColoredString>
 {
     let config = create_config_from_path(&config_path.into())?;
     
-    let mut new_deps = match config.dependencies {
+    let mut new_deps = match config.dependencies.clone() {
         Some(list) => list,
         None => Table::new(),
     };
 
-    new_deps.insert(dep_name.into(), toml::Value::String(dep_url.into()));
+    let mut new_dep_table = Table::new();
+    new_dep_table.insert("name".into(), toml::Value::String(dep.name.clone()));
+    new_dep_table.insert("version".into(), toml::Value::String(dep.version));
+    new_dep_table.insert("source".into(), toml::Value::String(dep.source));
+
+    new_deps.insert(dep.name.into(), toml::Value::Table(new_dep_table));
 
     let new_config = Config {
         dependencies: Some(new_deps),

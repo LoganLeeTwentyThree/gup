@@ -4,7 +4,7 @@ use std::env::home_dir;
 
 use crate::config::{Config};
 use crate::logging::*;
-use crate::pdm::get_dep_cfg;
+use crate::pdm::{add_dependency, get_dep_cfg, table_to_dep};
 use colored::Colorize;
 
 fn run_hcc( command : String, args : Vec<String>) -> std::result::Result<String, colored::ColoredString> {
@@ -81,11 +81,16 @@ pub fn build(config : &Config) -> std::result::Result<(), colored::ColoredString
                 Ok(true)=>{
                     args.push(depfile.1.to_string());
                 },
-                Ok(false)=>{
+                Ok(false) =>
+                {
+                    add_dependency(depfile.1.to_string())?;
+                    args.push(depfile.1.to_string());
+                },
+                _=>
+                {
                     let full_path: PathBuf = [home_dir().unwrap(), ".hc".into(), depfile.0.into()].iter().collect();
                     args.push(full_path.to_str().unwrap().into());
-                },
-                Err(e)=>{error(&e.to_string());},
+                }
             }
             
         }
@@ -107,15 +112,18 @@ pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), co
     let mut args: Vec<String> = Vec::new();
 
     if config.dependencies != None {
-        for depfile in config.dependencies.clone().unwrap(){
+        for dep_table in config.dependencies.clone().unwrap(){
+            let dep = table_to_dep(dep_table.1.as_table().expect("Unable to create dependency table"))?;
             args.push("-i".into());
-            let cfg_path: PathBuf = match std::fs::exists(depfile.1.to_string()) {
-                Ok(true) =>{depfile.1.to_string().into()},
-                Ok(false) =>{[home_dir().unwrap(), ".hc".into(), depfile.0.clone().into()].iter().collect()},
-                Err(e)=> return Err(e.to_string().into()),
+            println!("{}",dep.name);
+            let cfg_path: PathBuf = {
+                    let dir_name = format!("{}-{}", dep.name, dep.version);
+                    [home_dir().unwrap(), ".hc".into(), dir_name.into()].iter().collect()
             };
+                
 
-            for infile in get_dep_cfg(depfile)?.build.infiles{
+            let dep_name_version = format!("{}-{}", dep.name, dep.version);
+            for infile in get_dep_cfg(dep_name_version)?.build.infiles{
                 debug("Run", &format!("Adding {} to source", &infile));
                 let full_path = cfg_path.join(infile);
                 args.push(full_path.to_str().unwrap().into());

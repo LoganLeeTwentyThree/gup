@@ -7,6 +7,7 @@ infiles = ["./main.hc", "./main2.hc"]
 outfile = "./a.wasm"
 docfile = "./docs.md"
 
-[dependencies]
-"TestProject-0.1.0" = "https://github.com/LoganLeeTwentyThree/test"
-"Testing-0.2.0" = 'C:\Users\admin\.hc\Testing-0.2.0'
+[dependencies.TestProject2]
+name = "TestProject2"
+source = 'C:\Users\lofty\Documents\Test2'
+version = "0.2.0"

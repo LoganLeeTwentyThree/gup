@@ -1,6 +1,7 @@
 use colored::{Colorize,ColoredString};
 use clap::*;
 use log::error;
+use std::env::home_dir;
 use std::path::PathBuf;
 
 mod cli;
@@ -84,7 +85,7 @@ fn gup_main() -> Result<(), ColoredString> {
                     .map_err(|e| e.to_string().red())?;
             }
             // write the config
-            write_config(&cfg, "./Config.toml".into())?;
+            write_config(&cfg, crate::CONFIG_PATH.into())?;
 
             if !init_group.no_git {
                 // make a git repo
@@ -104,23 +105,32 @@ fn gup_main() -> Result<(), ColoredString> {
         Commands::Add(add_group) => {
             match (add_group.path, add_group.url){
                 (Some(path), None) =>{
-                    let cfg = create_config_from_path(&PathBuf::from(&path).join(CONFIG_PATH))?;
+                    let cfg = create_config_from_path(&PathBuf::from(path.clone()).join(CONFIG_PATH))?;
                     let pack = cfg.package.unwrap();
-                    let dep_name = format!("{}-{}", pack.name, pack.version );
-                    add_dep_to_config(&dep_name, &path, CONFIG_PATH)?;   
+                    let package_name = format!("{}-{}", pack.name, pack.version );
+                    let new_dir_name : PathBuf = [home_dir().unwrap(), ".hc".into(), package_name.into()].into_iter().collect();
+                    copy_dir::copy_dir(&path, new_dir_name)
+                        .map_err(|e|e.to_string())?;
+
+                    
+                    let new_dep = Dependency {
+                        name: pack.name,
+                        source: path.clone(),
+                        version: pack.version,
+                    };
+                    add_dep_to_config(new_dep, CONFIG_PATH)?;   
+                    success(&format!("Successfully added {} as a dependency.", &path));
                 },
                 (None,Some(url))=> {
                     let new_package = add_dependency(url.clone())?;
-                    add_dep_to_config(&new_package, &url, CONFIG_PATH)?;            
-                    info("Add", &format!("Successfully added {} as a dependency.", &new_package));
+                    add_dep_to_config(new_package, CONFIG_PATH)?;            
+                    success(&format!("Successfully added {} as a dependency.", &url));
                 },
                 _ => unreachable!()
             }
 
             if add_group.tree {
-                let cfg = create_config_from_path(&CONFIG_PATH.into())?;
-                let tree = get_dep_tree(cfg)?;
-                println!("{}", tree);
+                print_dep_tree()?
             }
             
         },
@@ -129,9 +139,7 @@ fn gup_main() -> Result<(), ColoredString> {
             println!("gup version: {}", env!("CARGO_PKG_VERSION"))
         },
         Commands::Tree => {
-            let cfg = create_config_from_path(&CONFIG_PATH.into())?;
-            let tree = get_dep_tree(cfg)?;
-            println!("{}", tree);
+            print_dep_tree()?
         }
     }
     Ok(())

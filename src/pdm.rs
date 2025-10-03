@@ -1,7 +1,6 @@
 use std::{env::home_dir, path::{PathBuf}};
 
 use colored::{ColoredString, Colorize};
-use serde::de;
 use toml::Table;
 use termtree::*;
 
@@ -51,7 +50,7 @@ pub fn add_dependency (url : String) -> Result<Dependency, ColoredString>
         Some(pack) => {
             let package_name = format!("{}-{}", pack.name, pack.version);
             let new_dep_path = get_hc_filepath().join(package_name.clone());
-            debug("PDM", &format!("Path to new dependency - \"{}\"", new_dep_path.to_str().unwrap()));
+            debug("PDM", &format!("Path to new dependency - \"{}\"", new_dep_path.to_string_lossy()));
 
             match std::fs::exists(new_dep_path.clone()){
                 Ok(false) => {

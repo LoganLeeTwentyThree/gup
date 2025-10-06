@@ -14,11 +14,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Modify rust toolchain
-        run: rustup default nightly && rustup target add x86_64-pc-windows-gnu
-      - name: Build project
-        run: |
-          cargo build --release --target x86_64-pc-windows-gnu
+      - uses: rust-build/rust-build.action@v1.4.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          RUSTTARGET: x86_64-pc-windows-gnu
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
         with:

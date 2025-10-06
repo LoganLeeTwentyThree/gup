@@ -22,7 +22,7 @@ jobs:
           TOOLCHAIN_VERSION: nightly
       - name: help
         run: >-
-          cd target
+          cd target &&
           ls -a
       - name: Release
         env:

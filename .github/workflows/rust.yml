@@ -31,13 +31,16 @@ jobs:
           UPLOAD_MODE: none
           RUSTTARGET: x86_64-unknown-linux-musl
           STATIC_LINKING: false
+      - name: get version
+        id: crate-version
+        uses: colathro/crate-version@2.0.0
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
-          gh release create ${{ github.ref_name }}
+          gh release create ${{ steps.crate-version.outputs.version }}
           "output/gup.exe#Gup for windows"
           "output/gup#Gup for linux"
           --generate-notes
-          --title "gup-$(date +%Y-%m-%d)"
+          --title "gup"
         

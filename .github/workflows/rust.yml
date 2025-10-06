@@ -21,7 +21,7 @@ jobs:
           RUSTTARGET: x86_64-pc-windows-gnu
           TOOLCHAIN_VERSION: nightly
       - name: help
-        run: ls -a
+        run: ls -a -r
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

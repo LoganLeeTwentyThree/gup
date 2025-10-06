@@ -23,8 +23,8 @@ jobs:
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            target/release/gup.exe
+          files: target/release/gup.exe
+          tags: idk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         

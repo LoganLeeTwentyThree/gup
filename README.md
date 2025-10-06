@@ -5,16 +5,16 @@ Gup is the package manager for the Halcyon programming language.
 Gup looks for a .toml file named "Config.toml" in your project directory to help configure it. Config files have a number of required and optional fields:
 
 \[package\]  
-`name` : String
-`version` : String
+`name` : String  
+`version` : String  
 
 \[build\]  
-*`infiles` : String Array
-*`outfile` : String
-`docfile` : String
+*`infiles` : String Array  
+*`outfile` : String  
+`docfile` : String  
 
 \[dependencies\]  
-`dependencies` : Table<String, String>
+`dependencies` : Table<String, String>  
 
 \* = required for compilation
 

@@ -23,6 +23,7 @@ jobs:
       - name: help
         run: >-
           cd target &&
+          cd x86_64-pc-windows-gnu &&
           ls -a
       - name: Release
         env:

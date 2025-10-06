@@ -19,6 +19,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           RUSTTARGET: x86_64-pc-windows-gnu
+          TOOLCHAIN_VERSION: nightly
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
         with:

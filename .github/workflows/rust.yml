@@ -12,6 +12,10 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Temporarily modify the rust toolchain version
+        run: rustup override set nightly
+      - name: Build
+      - run: cargo build --release
       - name: Publish artifacts and release
         uses: houseabsolute/actions-rust-release@v0
         with:

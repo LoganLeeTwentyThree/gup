@@ -3,6 +3,8 @@ name: Rust
 on:
   push:
     branches: [ "master" ]
+    tags:
+      - "v*.*.*"
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,7 +24,6 @@ jobs:
           TOOLCHAIN_VERSION: nightly
       - name: Release with Notes
         uses: softprops/action-gh-release@v2
-        if: github.ref_type == 'tag'
         with:
           files: target/release/gup.exe
         env:

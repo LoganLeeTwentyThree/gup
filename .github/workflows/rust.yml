@@ -17,6 +17,9 @@ jobs:
         target: [x86_64-pc-windows-gnu, x86_64-unknown-linux-musl]
     steps:
       - uses: actions/checkout@master
+      - name: Install zlib-dev (Linux only)
+        if: ${{ matrix.target }} == 'x86_64-unknown-linux-musl'
+        run: apk add --no-cache zlib-dev
       - name: Compile and release
         uses: rust-build/rust-build.action@v1.4.5
         env:

@@ -38,7 +38,5 @@ jobs:
           gh release upload master
           "output/gup.exe#Gup for windows"
           "output/gup#Gup for linux"
-          --generate-notes
-          --title "gup"
           --clobber
         

@@ -24,13 +24,14 @@ jobs:
         run: >-
           cd target &&
           cd x86_64-pc-windows-gnu &&
+          cd release &&
           ls -a
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release create ${{ github.ref_name }}
-          "gup.exe"
+          "target/ x86_64-pc-windows-gnu/release/gup.exe"
           --generate-notes
           --title "gup"
         

@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Modify rust toolchain
+        run: rustup default nightly && rustup target add x86_64-pc-windows-gnu
       - name: Build project
         run: |
           cargo build --release --target x86_64-pc-windows-gnu

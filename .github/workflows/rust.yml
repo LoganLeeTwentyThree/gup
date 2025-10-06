@@ -20,18 +20,14 @@ jobs:
         with:
           RUSTTARGET: x86_64-pc-windows-gnu
           TOOLCHAIN_VERSION: nightly
-      - name: help
-        run: >-
-          cd target &&
-          cd x86_64-pc-windows-gnu &&
-          cd release &&
-          ls -a
+          UPLOAD_MODE: none
+          ARCHIVE_TYPES: zip
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release create ${{ github.ref_name }}
-          "target/ x86_64-pc-windows-gnu/release/gup.exe"
+          "output"
           --generate-notes
           --title "gup"
         

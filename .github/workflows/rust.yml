@@ -20,11 +20,12 @@ jobs:
         with:
           RUSTTARGET: x86_64-pc-windows-gnu
           TOOLCHAIN_VERSION: nightly
-      - name: Release with Notes
-        uses: softprops/action-gh-release@v2
-        with:
-          files: target/x86_64-pc-windows-gnu/release/gup.exe
-          tag_name: 'v0.1.0'
+      - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh release create ${{ github.ref_name }}
+          "target/release/x86_64-pc-windows-gnu/gup.exe"
+          --generate-notes
+          --title "gup Version ${{ github.ref_name }}"
         

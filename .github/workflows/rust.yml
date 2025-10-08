@@ -38,6 +38,7 @@ jobs:
         with:
           file: Cargo.toml
           tagFormat: v${version}
+          failBuild: false
       - name: Create New Release
         if: steps.version_check_master.outputs.versionChanged
         env:

@@ -37,7 +37,7 @@ jobs:
         with:
           file: Cargo.toml
           tagFormat: v${version}
-      - name: Release
+      - name: Create New Release
         if: steps.version_check_master.outputs.versionChanged
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,4 +47,13 @@ jobs:
           "output/gup#Gup for linux"
           --generate-notes
           --title "gup ${{ steps.version_check_master.outputs.releaseVersion }}"
+      - name: Update Current Release
+        if: steps.version_check_master.outputs.versionChanged == false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh release upload ${{ steps.version_check_master.outputs.releaseVersion }} 
+          "output/gup.exe#Gup for windows"
+          "output/gup#Gup for linux"
+          --clobber
         

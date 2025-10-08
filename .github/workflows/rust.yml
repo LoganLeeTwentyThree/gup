@@ -32,11 +32,11 @@ jobs:
           RUSTTARGET: x86_64-unknown-linux-musl
           STATIC_LINKING: false
       - name: Check Release Version
+        id: version_check_master
         uses: thebongy/version-check@v2
         with:
           file: Cargo.toml
           tagFormat: v${version}
-          id: version_check_master
       - name: Release
         if: steps.version_check_master.outputs.versionChanged
         env:

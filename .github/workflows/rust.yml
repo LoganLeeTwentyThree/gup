@@ -31,12 +31,20 @@ jobs:
           UPLOAD_MODE: none
           RUSTTARGET: x86_64-unknown-linux-musl
           STATIC_LINKING: false
+      - name: Check Release Version
+        uses: thebongy/version-check@v2
+        with:
+          file: Cargo.toml
+          tagFormat: v${version}
+          id: version_check_master
       - name: Release
+        if: steps.version_check_master.outputs.versionChanged
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
-          gh release upload master
+          gh release create ${{ steps.version_check_master.outputs.releaseVersion }} 
           "output/gup.exe#Gup for windows"
           "output/gup#Gup for linux"
-          --clobber
+          --generate-notes
+          --title "gup ${{ steps.version_check_master.outputs.releaseVersion }}"
         

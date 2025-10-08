@@ -110,14 +110,19 @@ fn gup_main() -> Result<(), ColoredString> {
                 (Some(path), None) =>{
                     let cfg = create_config_from_path(&PathBuf::from(path.clone()).join(CONFIG_PATH))?;
                     let pack = cfg.package.unwrap();
-                    let package_name = format!("{}-{}", pack.name, pack.version );
+                    let package_name = format!("{}-{}", pack.name.chars().filter(|c| !c.is_whitespace()).collect::<String>(), pack.version );
                     let new_dir_name : PathBuf = [home_dir().unwrap(), ".hc".into(), package_name.into()].into_iter().collect();
+                    if std::fs::exists(&new_dir_name).map_err(|e|e.to_string())?
+                    {
+                        std::fs::remove_dir_all(&new_dir_name).map_err(|e|e.to_string())?;
+                    }
+                    
                     copy_dir::copy_dir(&path, new_dir_name)
                         .map_err(|e|e.to_string())?;
 
                     
                     let new_dep = Dependency {
-                        name: pack.name,
+                        name: pack.name.chars().filter(|c| !c.is_whitespace()).collect(),
                         source: path.clone(),
                         version: pack.version,
                     };

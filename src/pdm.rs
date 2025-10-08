@@ -1,4 +1,4 @@
-use std::{env::home_dir, path::{PathBuf}};
+use std::{collections::hash_map, env::home_dir, path::PathBuf};
 
 use colored::{ColoredString, Colorize};
 use toml::Table;
@@ -48,7 +48,7 @@ pub fn add_dependency (url : String) -> Result<Dependency, ColoredString>
     let dep_config = crate::config::create_config_from_path(&dep_config_path.to_str().expect("Dependency path not found.").into())?;
     match &dep_config.package {
         Some(pack) => {
-            let package_name = format!("{}-{}", pack.name, pack.version);
+            let package_name = format!("{}-{}", pack.name.chars().filter(|c| !c.is_whitespace()).collect::<String>(), pack.version);
             let new_dep_path = get_hc_filepath().join(package_name.clone());
             debug("PDM", &format!("Path to new dependency - \"{}\"", new_dep_path.to_string_lossy()));
 
@@ -66,7 +66,7 @@ pub fn add_dependency (url : String) -> Result<Dependency, ColoredString>
             }
             
             let return_value = Dependency {
-                name : pack.name.clone(),
+                name : pack.name.clone().chars().filter(|c| !c.is_whitespace()).collect(),
                 version : pack.version.clone(),
                 source : url,
             };
@@ -92,27 +92,37 @@ pub fn get_dep_filename(dep : &Dependency) -> Result<String, ColoredString>
 
 pub fn get_dep_tree(cfg : crate::Config) -> Result<Tree<String>, ColoredString>
 {
-    // TODO: Deal with circular dependencies
-
-    let pack = cfg.package.unwrap();
-    let cur_dep = Dependency {
-        name: pack.name,
-        version: pack.version,
-        source: String::new(),
-    };
-    let tree_name = get_dep_filename(&cur_dep)?;
-    let mut tree = Tree::new(tree_name);
-    if cfg.dependencies != None
+    fn get_tree_recursive(cfg : crate::Config, hm : &mut hash_map::HashMap<String, bool>) -> Result<Tree<String>, ColoredString>
     {
-        for dep in &cfg.dependencies.clone().unwrap()
-        {    
-            let new_dep = table_to_dep(dep.1.as_table().expect("Unable to create table from dependency"))?;
-            let child_subtree = get_dep_tree(get_dep_cfg(new_dep)?)?;
-            tree.push(child_subtree);
-        }   
+        let pack = cfg.package.unwrap();
+        let cur_dep = Dependency {
+            name: pack.name,
+            version: pack.version,
+            source: String::new(),
+        };
+        let tree_name = get_dep_filename(&cur_dep)?;
+        let mut tree = Tree::new(tree_name);
+        if cfg.dependencies != None
+        {
+            for dep in &cfg.dependencies.clone().unwrap()
+            {    
+                let new_dep = table_to_dep(dep.1.as_table().expect("Unable to create table from dependency"))?;
+                if hm.contains_key(&get_dep_filename(&new_dep)?)
+                {
+                    tree.push(format!("{} *", get_dep_filename(&new_dep)?));
+                }else {
+                    hm.insert(get_dep_filename(&new_dep)?, true);
+                    let child_subtree = get_tree_recursive(get_dep_cfg(new_dep)?, hm)?;
+                    tree.push(child_subtree);
+                }
+                
+            }   
+        }
+        Ok(tree)
     }
+    Ok(get_tree_recursive(cfg, &mut hash_map::HashMap::new())?)
 
-    Ok(tree)
+    
 
 }
 

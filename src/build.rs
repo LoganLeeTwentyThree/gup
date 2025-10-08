@@ -1,11 +1,11 @@
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command};
 use std::env::home_dir;
 
-use crate::config::{Config};
+use crate::config::{Config, Dependency};
 use crate::logging::*;
 use crate::pdm::{add_dependency, get_dep_cfg, get_dep_filename, table_to_dep};
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 
 fn run_hcc( command : String, args : Vec<String>) -> std::result::Result<String, colored::ColoredString> {
     let mut build_command = Command::new("hcc");
@@ -19,33 +19,27 @@ fn run_hcc( command : String, args : Vec<String>) -> std::result::Result<String,
 
     match build_command.output(){
         Ok(out)=> {
-            let stdout  = std::str::from_utf8(&out.stdout[..]);
-            let stderr = std::str::from_utf8(&out.stderr[..]);
-
-            match stderr {
-                Ok(result) => {
-                    println!("STDERR: \n{result}");
-                },
-                Err(e) =>
+            match out.status.code()
+            {
+                Some(0) =>
                 {
-                    return Err(e.to_string().into());
-                }
-            }
+                    let stdout  = std::str::from_utf8(&out.stdout[..]);
 
-            match stdout {
-                Ok(result) => {
-                    return Ok(result.into());
-                },
-                Err(e) =>
-                {
-                    return Err(e.to_string().into());
+                    match stdout {
+                        Ok(result) => {
+                            Ok(result.into())
+                        },
+                        Err(e) =>
+                        {
+                            Err(e.to_string().into())
+                        }
+                    }
                 }
+                _=> Err(format!("hcc failed to compile:\n{}",std::str::from_utf8(&out.stdout[..]).unwrap()).into())
             }
-
-            
         },
         Err(e) => {
-            return Err(format!("{} (Do you have hcc installed?)",e.to_string()).into());
+            Err(format!("{} (Do you have hcc installed?)",e.to_string()).into())
         }
     }
 }
@@ -70,6 +64,23 @@ pub fn check_valid(config : &Config) -> std::result::Result<(), colored::Colored
 
 } 
 
+fn add_dep_to_source(dep : Dependency, source : &mut Vec<String>) -> Result<(), ColoredString>
+{
+    let cfg_path: PathBuf = {
+        let dir_name = get_dep_filename(&dep)?;
+        [home_dir().unwrap(), ".hc".into(), dir_name.into()].iter().collect()
+    };
+
+    for infile in get_dep_cfg(dep)?.build.infiles{
+        debug("add_dep_to_source", &format!("Adding {} to source", &infile));
+
+        source.push("-i".into());
+        let full_path = cfg_path.join(infile);
+        source.push(full_path.to_str().unwrap().into());
+    }
+    Ok(())
+}
+
 pub fn build(config : &Config) -> std::result::Result<(), colored::ColoredString> {
     
     let mut args: Vec<String> = Vec::new();
@@ -77,14 +88,17 @@ pub fn build(config : &Config) -> std::result::Result<(), colored::ColoredString
     if config.dependencies != None{
         for depfile in config.dependencies.clone().unwrap(){
             args.push("-i".into());
-            match std::fs::exists(depfile.1.to_string()) {
+
+            let dep = table_to_dep(depfile.1.as_table().expect("Unable to create table from dependency"))?;
+
+            match std::fs::exists(&dep.source) {
                 Ok(true)=>{
-                    args.push(depfile.1.to_string());
+                    add_dep_to_source(dep, &mut args)?;
                 },
                 Ok(false) =>
                 {
-                    add_dependency(depfile.1.to_string())?;
-                    args.push(depfile.1.to_string());
+                    add_dependency(dep.source.clone())?;
+                    add_dep_to_source(dep, &mut args)?
                 },
                 _=>
                 {
@@ -115,18 +129,7 @@ pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), co
         for dep_table in config.dependencies.clone().unwrap(){
             let dep = table_to_dep(dep_table.1.as_table().expect("Unable to create dependency table"))?;
             
-            let cfg_path: PathBuf = {
-                    let dir_name = get_dep_filename(&dep)?;
-                    [home_dir().unwrap(), ".hc".into(), dir_name.into()].iter().collect()
-            };
-                
-            for infile in get_dep_cfg(dep)?.build.infiles{
-                debug("Run", &format!("Adding {} to source", &infile));
-
-                args.push("-i".into());
-                let full_path = cfg_path.join(infile);
-                args.push(full_path.to_str().unwrap().into());
-            }
+            add_dep_to_source(dep, &mut args)?
         }
     }
     

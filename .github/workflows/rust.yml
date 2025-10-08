@@ -40,7 +40,7 @@ jobs:
           tagFormat: v${version}
           failBuild: false
       - name: Create New Release
-        if: ${{ steps.version_check_master.outputs.releaseVersion }} != ${{ github.event.release.tag_name }}
+        if: ${{ steps.version_check_master.outputs.releaseVersion != github.event.release.tag_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
@@ -50,7 +50,7 @@ jobs:
           --generate-notes
           --title "gup ${{ steps.version_check_master.outputs.releaseVersion }}"
       - name: Update Current Release
-        if: ${{ steps.version_check_master.outputs.releaseVersion }} == ${{ github.event.release.tag_name }}
+        if: ${{ steps.version_check_master.outputs.releaseVersion == github.event.release.tag_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-

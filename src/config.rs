@@ -40,11 +40,11 @@ pub struct Dependency {
 
 pub fn create_config_from_path(path : &PathBuf) -> std::result::Result<Config, ColoredString>
 {
-    debug("create_config_from_path",&format!("Creating config from \"{}\"", path.to_str().unwrap()));
+    debug("create_config_from_path",&format!("Creating config from \"{}\"", path.to_string_lossy()));
     let cfgfile = std::fs::read_to_string(path)
         .map_err(|e| format!("{} {}", "Config error:\n".red(), e.to_string()))?;
     let cfg : Config = toml::from_str(&cfgfile).map_err(|e| e.to_string() + &"\nCould not create config".red())?;
-    debug("create_config_from_path",&format!("Validating config: {}", path.to_str().unwrap()));
+    debug("create_config_from_path",&format!("Validating config: {}", path.to_string_lossy()));
     validate_config(&cfg)?;
     Ok(cfg)
 }
@@ -73,19 +73,19 @@ pub fn validate_config(cfg : &Config) -> Result<(), ColoredString>
     for arg in &cfg.build.infiles {
         debug("validate_config",&format!("Checking input file \"{}\" ", arg));
         let path= std::path::Path::new(&arg);
-        if std::fs::exists(path).unwrap() == true {
-            match path.extension().unwrap().to_str() {
+        if let Ok(true) = std::fs::exists(path) {
+            match path.extension().and_then(|ext| ext.to_str()) {
                 Some("hc") => {},
-                Some("wasm") =>{},
-                _ => return std::result::Result::Err(format!("{}: {} \"{}\"","Config Error:".red(), "Invalid input filename", &arg).into()),
+                Some("wasm") => {},
+                _ => return std::result::Result::Err(format!("{}: {} \"{}\"", "Config Error:".red(), "Invalid input filename", &arg).into()),
             }
-        }
+        } 
         
     }
 
     debug("validate_config",&format!("Checking output file {} ", cfg.build.outfile));
     //check outfile for errors
-    match std::path::Path::new(&cfg.build.outfile).extension().unwrap().to_str() {
+    match std::path::Path::new(&cfg.build.outfile).extension().and_then(|ext| ext.to_str()) {
         Some("wasm") => {},
         _ => return std::result::Result::Err(format!("{}: {} \"{}\"","Config error".red(), "Invalid output filename:", &cfg.build.outfile).into()),
     }
@@ -106,7 +106,7 @@ pub fn validate_config(cfg : &Config) -> Result<(), ColoredString>
         None => {},
         Some(path) => {
             debug("validate_config",&format!("checking docfile \"{}\"", path));
-            match std::path::Path::new(&path).extension().unwrap().to_str() {
+            match std::path::Path::new(&path).extension().and_then(|ext| ext.to_str()) {
                 Some("md") => {},
                 _ => return std::result::Result::Err(format!("{}: {} \"{}\"","Config error:".red(), "Invalid doc filename: ".red(), &path).into()),
             }
@@ -119,7 +119,8 @@ pub fn validate_config(cfg : &Config) -> Result<(), ColoredString>
 
 pub fn write_config( cfg : &Config, path : String ) -> Result<(), ColoredString>
 {
-    let config_contents = toml::to_string(cfg).unwrap();
+    let config_contents = toml::to_string(cfg)
+        .map_err(|e|e.to_string())?;
     std::fs::write(std::path::PathBuf::from(path), &config_contents)
         .map_err(|e| e.to_string().red())?;
     Ok(())

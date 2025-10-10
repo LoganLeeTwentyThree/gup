@@ -43,8 +43,8 @@ fn gup_main() -> Result<(), ColoredString> {
         Commands::Init(init_group) => {
             // Initialize a new halcyon project
             // check if config already exists
-            match std::fs::exists(CONFIG_PATH).unwrap() {
-                true => {
+            match std::fs::exists(CONFIG_PATH) {
+                Ok(true) => {
                     warn("Init",&format!("\"{CONFIG_PATH}\" already exists in this directory. Continue? (y/N)"));
                     loop {
                         let mut input = String::new();
@@ -57,7 +57,8 @@ fn gup_main() -> Result<(), ColoredString> {
                         }
                     }
                 },
-                false => {}
+                Ok(false) => {}
+                Err(e) => return Err(format!("{}: {}", "Init error".red(), e).into())
             } 
 
             println!("Input Project Name: ");
@@ -81,8 +82,13 @@ fn gup_main() -> Result<(), ColoredString> {
             
             // write each infile as a .hc module
             for arg in cfg.build.infiles.clone() {
-                let content = String::from("module ") + std::path::PathBuf::from(&arg).file_stem().unwrap().to_str().expect("Filename contains invalid characters") + " =\n(* Your code here! *)\nend";
-                std::fs::write(std::path::PathBuf::from(arg), content)
+                let path = std::path::PathBuf::from(&arg);
+                let module_name = match path.file_stem().and_then(|s| s.to_str()) {
+                    Some(name) => name,
+                    None => return Err("Invalid or missing filename for module".red().into()),
+                };
+                let content = format!("module {} =\n(* Your code here! *)\nend", module_name);
+                std::fs::write(path, content)
                     .map_err(|e| e.to_string().red())?;
             }
             // write the config
@@ -109,9 +115,9 @@ fn gup_main() -> Result<(), ColoredString> {
             match (add_group.path, add_group.url){
                 (Some(path), None) =>{
                     let cfg = create_config_from_path(&PathBuf::from(path.clone()).join(CONFIG_PATH))?;
-                    let pack = cfg.package.unwrap();
+                    let pack = cfg.package.expect("Dpendency has invalid config!");
                     let package_name = format!("{}-{}", pack.name.chars().filter(|c| !c.is_whitespace()).collect::<String>(), pack.version );
-                    let new_dir_name : PathBuf = [home_dir().unwrap(), ".hc".into(), package_name.into()].into_iter().collect();
+                    let new_dir_name : PathBuf = get_hc_filepath()?.join::<PathBuf>(package_name.into());
                     if std::fs::exists(&new_dir_name).map_err(|e|e.to_string())?
                     {
                         std::fs::remove_dir_all(&new_dir_name).map_err(|e|e.to_string())?;
@@ -145,13 +151,13 @@ fn gup_main() -> Result<(), ColoredString> {
         Commands::Update => {
             for dep_table in create_config_from_path(&PathBuf::from(CONFIG_PATH))?.dependencies.unwrap()
             {
-                let dep = table_to_dep(dep_table.1.as_table().unwrap())?;
+                let dep = table_to_dep(dep_table.1.as_table().expect("Dependency entry should be a table!"))?;
                 let url = Url::parse(&dep.source)
                     .map_err(|e|e.to_string())?;
 
                 if url.has_host()
                 {
-                    let dest : PathBuf = [get_hc_filepath(), get_dep_filename(&dep)?.into()].into_iter().collect();
+                    let dest : PathBuf = [get_hc_filepath()?, get_dep_filename(&dep)?.into()].into_iter().collect();
                     git2::Repository::clone(&url.to_string(), dest)
                         .map_err(|e|e.to_string())?;
                 }

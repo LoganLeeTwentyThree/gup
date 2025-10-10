@@ -31,13 +31,7 @@ use crate::{config::{self, Dependency}, logging::*};
 
 pub fn add_dependency (url : String) -> Result<Dependency, ColoredString>
 {
-    let dep_path = get_hc_filepath().join("temp");
-    
-    // create hc directory if not exist
-    if !std::fs::exists(get_hc_filepath().clone()).unwrap() {
-        std::fs::create_dir(get_hc_filepath().clone())
-            .map_err(|e| e.to_string().red())?;
-    }
+    let dep_path = get_hc_filepath()?.join("temp");
 
     git2::Repository::clone(&url, dep_path.clone())
         .map_err(|e| e.to_string().red())?;
@@ -49,7 +43,7 @@ pub fn add_dependency (url : String) -> Result<Dependency, ColoredString>
     match &dep_config.package {
         Some(pack) => {
             let package_name = format!("{}-{}", pack.name.chars().filter(|c| !c.is_whitespace()).collect::<String>(), pack.version);
-            let new_dep_path = get_hc_filepath().join(package_name.clone());
+            let new_dep_path = get_hc_filepath()?.join(package_name.clone());
             debug("PDM", &format!("Path to new dependency - \"{}\"", new_dep_path.to_string_lossy()));
 
             match std::fs::exists(new_dep_path.clone()){
@@ -80,21 +74,21 @@ pub fn add_dependency (url : String) -> Result<Dependency, ColoredString>
 pub fn get_dep_cfg(dep : Dependency) -> Result<crate::Config, ColoredString>
 {
     let name_version = get_dep_filename(&dep)?;
-    let full_path : PathBuf = [get_hc_filepath(), name_version.into(), "Config.toml".into()].iter().collect();
+    let full_path : PathBuf = [get_hc_filepath()?, name_version.into(), "Config.toml".into()].iter().collect();
     debug("get_dep_cfg", &format!("Getting config from {}", full_path.to_string_lossy()));
     config::create_config_from_path(&full_path)
 }
 
 pub fn get_dep_filename(dep : &Dependency) -> Result<String, ColoredString>
 {
-    Ok(format!("{}-{}", dep.name, dep.version))
+    Ok(format!("{}-{}", dep.name.chars().filter(|c| !c.is_whitespace()).collect::<String>(), dep.version))
 }
 
 pub fn get_dep_tree(cfg : crate::Config) -> Result<Tree<String>, ColoredString>
 {
     fn get_tree_recursive(cfg : crate::Config, hm : &mut hash_map::HashMap<String, bool>) -> Result<Tree<String>, ColoredString>
     {
-        let pack = cfg.package.unwrap();
+        let pack = cfg.package.expect("Dependency should have a package field!");
         let cur_dep = Dependency {
             name: pack.name,
             version: pack.version,
@@ -102,9 +96,9 @@ pub fn get_dep_tree(cfg : crate::Config) -> Result<Tree<String>, ColoredString>
         };
         let tree_name = get_dep_filename(&cur_dep)?;
         let mut tree = Tree::new(tree_name);
-        if cfg.dependencies != None
+        if let Some(deps) = cfg.dependencies.as_ref()
         {
-            for dep in &cfg.dependencies.clone().unwrap()
+            for dep in deps
             {    
                 let new_dep = table_to_dep(dep.1.as_table().expect("Unable to create table from dependency"))?;
                 if hm.contains_key(&get_dep_filename(&new_dep)?)
@@ -129,9 +123,18 @@ pub fn get_dep_tree(cfg : crate::Config) -> Result<Tree<String>, ColoredString>
 pub fn table_to_dep (table : &Table) -> Result<Dependency, ColoredString>
 {
     Ok(Dependency {
-        name: table.get("name").expect("Table should have name field").as_str().unwrap().into(),
-        version: table.get("version").expect("Table should have version field").as_str().unwrap().into(),
-        source: table.get("source").expect("Table should have source field").as_str().unwrap().into(),
+        name: table.get("name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Dependency table missing or invalid 'name' field".red())?
+            .into(),
+        version: table.get("version")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Dependency table missing or invalid 'version' field".red())?
+            .into(),
+        source: table.get("source")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Dependency table missing or invalid 'source' field".red())?
+            .into(),
     })
 }
 
@@ -143,7 +146,25 @@ pub fn print_dep_tree () -> Result<(), ColoredString>
     Ok(())
 }
 
-pub fn get_hc_filepath() -> PathBuf
+pub fn get_hc_filepath() -> Result<PathBuf, ColoredString>
 {
-    [home_dir().unwrap(), PathBuf::from(".hc")].iter().collect::<PathBuf>()
+    if let Some(home) = home_dir() 
+    {
+        let hc_path = home.join(".hc");
+
+        // create hc directory if not exist
+        match std::fs::exists(&hc_path) {
+            Ok(true) => {},
+            Ok(false) => {
+                std::fs::create_dir(&hc_path)
+                    .map_err(|e| e.to_string().red())?;
+            },
+            Err(e) => return Err(format!("Unable to create directory: {}", e).into())
+        }
+
+        Ok(hc_path)
+    }else {
+        Err("Unable to find home directory.".into())
+    }
+
 }

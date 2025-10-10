@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 use std::process::{Command};
-use std::env::home_dir;
 
 use crate::config::{Config, Dependency};
 use crate::logging::*;
-use crate::pdm::{add_dependency, get_dep_cfg, get_dep_filename, table_to_dep};
+use crate::pdm::{add_dependency, get_dep_cfg, get_dep_filename, get_hc_filepath, table_to_dep};
 use colored::{ColoredString, Colorize};
 
 fn run_hcc( command : String, args : Vec<String>) -> std::result::Result<String, colored::ColoredString> {
@@ -35,7 +34,7 @@ fn run_hcc( command : String, args : Vec<String>) -> std::result::Result<String,
                         }
                     }
                 }
-                _=> Err(format!("hcc failed to compile:\n{}",std::str::from_utf8(&out.stdout[..]).unwrap()).into())
+                _=> Err(format!("hcc failed to compile:\n{}",std::str::from_utf8(&out.stdout[..]).unwrap_or("Hcc output not valid utf8")).into())
             }
         },
         Err(e) => {
@@ -51,10 +50,9 @@ pub fn check_valid(config : &Config) -> std::result::Result<(), colored::Colored
     for infile in &config.build.infiles {
         info("Check",&format!("Checking: {}", infile.blue()));
         let path = std::path::PathBuf::from(infile);
-        match path.extension().unwrap().to_str() {
+        match path.extension().and_then(|ext| ext.to_str()) {
             Some("hc") => {}
-            Some("wasm") => {// maybe something here later... idk 
-                },
+            Some("wasm") => { /* maybe something here later... idk */ }
             _ => error(&format!("Check: Invalid infile type detected \"{}\"", infile)),
         }
         
@@ -68,7 +66,7 @@ fn add_dep_to_source(dep : Dependency, source : &mut Vec<String>) -> Result<(), 
 {
     let cfg_path: PathBuf = {
         let dir_name = get_dep_filename(&dep)?;
-        [home_dir().unwrap(), ".hc".into(), dir_name.into()].iter().collect()
+        get_hc_filepath()?.join::<PathBuf>(dir_name.into())
     };
 
     for infile in get_dep_cfg(dep)?.build.infiles{
@@ -76,17 +74,17 @@ fn add_dep_to_source(dep : Dependency, source : &mut Vec<String>) -> Result<(), 
 
         source.push("-i".into());
         let full_path = cfg_path.join(infile);
-        source.push(full_path.to_str().unwrap().into());
+        source.push(full_path.to_string_lossy().into());
     }
     Ok(())
 }
 
 pub fn build(config : &Config) -> std::result::Result<(), colored::ColoredString> {
-    
     let mut args: Vec<String> = Vec::new();
 
-    if config.dependencies != None{
-        for depfile in config.dependencies.clone().unwrap(){
+    if let Some(deps) = config.dependencies.as_ref()
+    {
+        for depfile in deps{
             args.push("-i".into());
 
             let dep = table_to_dep(depfile.1.as_table().expect("Unable to create table from dependency"))?;
@@ -102,8 +100,8 @@ pub fn build(config : &Config) -> std::result::Result<(), colored::ColoredString
                 },
                 _=>
                 {
-                    let full_path: PathBuf = [home_dir().unwrap(), ".hc".into(), depfile.0.into()].iter().collect();
-                    args.push(full_path.to_str().unwrap().into());
+                    let full_path: PathBuf = get_hc_filepath()?.join::<PathBuf>(depfile.0.into());
+                    args.push(full_path.to_string_lossy().into());
                 }
             }
             
@@ -125,8 +123,8 @@ pub fn build(config : &Config) -> std::result::Result<(), colored::ColoredString
 pub fn run(config : &Config, params : Vec<String>) -> std::result::Result<(), colored::ColoredString> {
     let mut args: Vec<String> = Vec::new();
 
-    if config.dependencies != None {
-        for dep_table in config.dependencies.clone().unwrap(){
+    if let Some(deps) = config.dependencies.as_ref() {
+        for dep_table in deps{
             let dep = table_to_dep(dep_table.1.as_table().expect("Unable to create dependency table"))?;
             
             add_dep_to_source(dep, &mut args)?

@@ -1,8 +1,6 @@
 use colored::{Colorize,ColoredString};
 use clap::*;
 use log::error;
-use url::Url;
-use std::env::home_dir;
 use std::path::PathBuf;
 
 mod cli;
@@ -35,7 +33,7 @@ fn gup_main() -> Result<(), ColoredString> {
         Commands::Build => {
             let cfg = create_config_from_path(&PathBuf::from(CONFIG_PATH))?;
             build(&cfg)?;
-        }
+        },
         Commands::Run(run_group) => {
             let cfg = create_config_from_path(&PathBuf::from(CONFIG_PATH))?;
             run(&cfg, run_group.paramaters)?;
@@ -66,7 +64,7 @@ fn gup_main() -> Result<(), ColoredString> {
             std::io::stdin().read_line(&mut proj_name).expect("Failed to read line");
             
             
-            // create a config from input/defaults
+            // create a config from defaults
             let mut cfg = create_config(
                 vec!["./main.hc".into()], 
                 OUTPUT_PATH.into(), 
@@ -149,19 +147,7 @@ fn gup_main() -> Result<(), ColoredString> {
             
         },
         Commands::Update => {
-            for dep_table in create_config_from_path(&PathBuf::from(CONFIG_PATH))?.dependencies.unwrap()
-            {
-                let dep = table_to_dep(dep_table.1.as_table().expect("Dependency entry should be a table!"))?;
-                let url = Url::parse(&dep.source)
-                    .map_err(|e|e.to_string())?;
-
-                if url.has_host()
-                {
-                    let dest : PathBuf = [get_hc_filepath()?, get_dep_filename(&dep)?.into()].into_iter().collect();
-                    git2::Repository::clone(&url.to_string(), dest)
-                        .map_err(|e|e.to_string())?;
-                }
-            }
+            update_dependencies()?;
         },
         Commands::Version => {
             println!("gup version: {}", env!("CARGO_PKG_VERSION"))

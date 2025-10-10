@@ -168,3 +168,21 @@ pub fn get_hc_filepath() -> Result<PathBuf, ColoredString>
     }
 
 }
+
+pub fn update_dependencies() -> Result<(), ColoredString>
+{
+    for dep_table in config::create_config_from_path(&PathBuf::from(crate::CONFIG_PATH))?.dependencies.unwrap()
+    {
+        let dep = table_to_dep(dep_table.1.as_table().expect("Dependency entry should be a table!"))?;
+        let url = url::Url::parse(&dep.source)
+            .map_err(|e|e.to_string())?;
+
+        if url.has_host()
+        {
+            let dest : PathBuf = get_hc_filepath()?.join(get_dep_filename(&dep)?);
+            git2::Repository::clone(&url.to_string(), dest)
+                .map_err(|e|e.to_string())?;
+        }
+    }
+    Ok(())
+}

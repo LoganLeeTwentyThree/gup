@@ -9,28 +9,19 @@ env:
 
 jobs:
   build:
-    name: Build
+    name: Build linux
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - run: git fetch --all --tags
-      - name: Build windows
-        uses: rust-build/rust-build.action@v1.4.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          RUSTTARGET: x86_64-pc-windows-gnu
-          TOOLCHAIN_VERSION: nightly
-          UPLOAD_MODE: none
-      - name: Build linux 
-        uses: rust-build/rust-build.action@v1.4.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          TOOLCHAIN_VERSION: nightly
-          UPLOAD_MODE: none
-          RUSTTARGET: x86_64-unknown-linux-gnu
+      - name: Install targets
+        run: |
+          rustup target add x86_64-unknown-linux-gnu
+          rustup update nightly
+          rustup default nightly
+          rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
+      - name: Build linux
+        run: cargo build -Zbuild-std --target x86_64-unknown-linux-gnu --release 
       - name: Check Release Version
         id: version_check_master
         uses: thebongy/version-check@v2
@@ -49,8 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release create ${{ steps.version_check_master.outputs.releaseVersion }} 
-          "output/gup.exe#Gup for windows"
-          "output/gup#Gup for linux"
+          "target/x86_64-unknown-linux-gnu/release/hcc#Hcc for linux"
           --generate-notes
           --title "gup ${{ steps.version_check_master.outputs.releaseVersion }}"
       - name: Update Current Release
@@ -59,7 +49,49 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release upload ${{ steps.version_check_master.outputs.releaseVersion }} 
-          "output/gup.exe#Gup for windows"
-          "output/gup#Gup for linux"
+          "target/x86_64-unknown-linux-gnu/release/hcc#Hcc for linux"
+          --clobber
+  build2:
+    name: Build windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install targets
+        run: |
+          rustup target add x86_64-pc-windows-msvc
+          rustup update nightly
+          rustup default nightly
+          rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
+      - name: Build windows
+        run: cargo build -Zbuild-std --target x86_64-pc-windows-msvc --release
+      - name: Check Release Version
+        id: version_check_master
+        uses: thebongy/version-check@v2
+        with:
+          file: Cargo.toml
+          tagFormat: v${version}
+          failBuild: false
+      - name: 'Get Previous tag'
+        id: previoustag
+        uses: WyriHaximus/github-action-get-previous-tag@v1
+        with:
+          fallback: 1.0.0
+      - name: Create New Release
+        if: ${{ steps.version_check_master.outputs.releaseVersion != steps.previoustag.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh release create ${{ steps.version_check_master.outputs.releaseVersion }} 
+          "target/x86_64-pc-windows-msvc/release/hcc.exe#Hcc for windows"
+          --generate-notes
+          --title "gup ${{ steps.version_check_master.outputs.releaseVersion }}"
+      - name: Update Current Release
+        if: ${{ steps.version_check_master.outputs.releaseVersion == steps.previoustag.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh release upload ${{ steps.version_check_master.outputs.releaseVersion }} 
+          "target/x86_64-pc-windows-msvc/release/hcc.exe#Hcc for windows"
           --clobber
         

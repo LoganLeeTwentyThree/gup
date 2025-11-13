@@ -30,7 +30,7 @@ jobs:
         with:
           TOOLCHAIN_VERSION: nightly
           UPLOAD_MODE: none
-          RUSTTARGET: x86_64-unknown-linux-musl
+          RUSTTARGET: x86_64-unknown-linux-gnu
       - name: Check Release Version
         id: version_check_master
         uses: thebongy/version-check@v2

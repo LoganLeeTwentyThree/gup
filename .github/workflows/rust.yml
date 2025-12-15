@@ -40,7 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release create ${{ steps.version_check_master.outputs.releaseVersion }} 
-          "target/x86_64-unknown-linux-gnu/release/hcc#Hcc for linux"
+          "target/x86_64-unknown-linux-gnu/release/gup#Gup for linux"
           --generate-notes
           --title "gup ${{ steps.version_check_master.outputs.releaseVersion }}"
       - name: Update Current Release
@@ -49,7 +49,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release upload ${{ steps.version_check_master.outputs.releaseVersion }} 
-          "target/x86_64-unknown-linux-gnu/release/hcc#Hcc for linux"
+          "target/x86_64-unknown-linux-gnu/release/gup#Gup for linux"
           --clobber
   build2:
     name: Build windows
@@ -83,7 +83,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release create ${{ steps.version_check_master.outputs.releaseVersion }} 
-          "target/x86_64-pc-windows-msvc/release/hcc.exe#Hcc for windows"
+          "target/x86_64-pc-windows-msvc/release/gup.exe#Gup for windows"
           --generate-notes
           --title "gup ${{ steps.version_check_master.outputs.releaseVersion }}"
       - name: Update Current Release
@@ -92,6 +92,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release upload ${{ steps.version_check_master.outputs.releaseVersion }} 
-          "target/x86_64-pc-windows-msvc/release/hcc.exe#Hcc for windows"
+          "target/x86_64-pc-windows-msvc/release/gup.exe#Gup for windows"
           --clobber
         

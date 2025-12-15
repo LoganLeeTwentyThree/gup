@@ -6,6 +6,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build:
@@ -25,8 +26,6 @@ jobs:
       - name: Check Release Version
         id: version_check_master
         uses: thebongy/version-check@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           file: Cargo.toml
           tagFormat: v${version}
@@ -45,8 +44,6 @@ jobs:
           --title "gup ${{ steps.version_check_master.outputs.releaseVersion }}"
       - name: Update Current Release
         if: ${{ steps.version_check_master.outputs.releaseVersion == steps.previoustag.outputs.tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release upload ${{ steps.version_check_master.outputs.releaseVersion }} 
           "target/x86_64-unknown-linux-gnu/release/gup#Gup for linux"
@@ -79,8 +76,6 @@ jobs:
           fallback: 1.0.0
       - name: Create New Release
         if: ${{ steps.version_check_master.outputs.releaseVersion != steps.previoustag.outputs.tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release create ${{ steps.version_check_master.outputs.releaseVersion }} 
           "target/x86_64-pc-windows-msvc/release/gup.exe#Gup for windows"
@@ -88,8 +83,6 @@ jobs:
           --title "gup ${{ steps.version_check_master.outputs.releaseVersion }}"
       - name: Update Current Release
         if: ${{ steps.version_check_master.outputs.releaseVersion == steps.previoustag.outputs.tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release upload ${{ steps.version_check_master.outputs.releaseVersion }} 
           "target/x86_64-pc-windows-msvc/release/gup.exe#Gup for windows"
